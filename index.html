@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Pesaje de Ganado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1EA; --surface:#FFFFFF; --surface-2:#F6F8F3;
+    --ink:#16211B; --ink-soft:#586258; --line:#D2DACF;
+    --go:#137A3A; --go-press:#0E5C2C;
+    --stop:#C22B2B; --stop-press:#9C2020;
+    --warn:#C77800;
+    --mic:#E08A00; --mic-press:#B86F00;
+    --check:#137A3A; --shadow:0 2px 0 rgba(22,33,27,.10);
+    --tap:64px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12160F; --surface:#1B2118; --surface-2:#222A1E;
+      --ink:#F1F4EC; --ink-soft:#A9B4A5; --line:#37402F;
+      --go:#2E9E52; --go-press:#238040; --stop:#E5564E; --stop-press:#C23A33;
+      --warn:#E6A02B; --mic:#F0A72A; --mic-press:#CC8A16; --check:#3FB56A; --shadow:none;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12160F; --surface:#1B2118; --surface-2:#222A1E;
+    --ink:#F1F4EC; --ink-soft:#A9B4A5; --line:#37402F;
+    --go:#2E9E52; --go-press:#238040; --stop:#E5564E; --stop-press:#C23A33;
+    --warn:#E6A02B; --mic:#F0A72A; --mic-press:#CC8A16; --check:#3FB56A; --shadow:none;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-weight:600; -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1;
+  }
+  .app{max-width:600px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+  header{
+    position:sticky; top:0; z-index:20; background:var(--surface);
+    border-bottom:2px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .brand{display:flex; align-items:baseline; gap:8px; min-width:0;}
+  .brand .em{font-size:22px;}
+  .brand h1{font-size:15px; font-weight:800; letter-spacing:.2px; margin:0; white-space:nowrap;}
+  .brand .finca{font-size:13px; color:var(--ink-soft); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .count{background:var(--surface-2); border:2px solid var(--line); border-radius:12px; padding:6px 12px; text-align:center; line-height:1; flex:none;}
+  .count b{display:block; font-size:22px; font-weight:900;}
+  .count span{font-size:10px; color:var(--ink-soft); font-weight:700; text-transform:uppercase; letter-spacing:.5px;}
+  main{flex:1; padding:14px 14px 100px; overflow-y:auto;}
+  .datebar{color:var(--ink-soft); font-size:14px; font-weight:700; margin:2px 2px 12px; text-transform:capitalize;}
+  .findrow{display:flex; gap:10px; margin-bottom:14px;}
+  .search{flex:1; display:flex; align-items:center; gap:10px; background:var(--surface); border:2px solid var(--line); border-radius:16px; padding:0 14px; height:58px;}
+  .search input{border:0; outline:0; background:transparent; color:var(--ink); width:100%; font-family:inherit; font-size:20px; font-weight:700;}
+  .search .clr{color:var(--ink-soft); font-size:26px; padding:6px; line-height:1;}
+  .micbtn{flex:none; width:58px; height:58px; border-radius:16px; border:0; background:var(--mic); color:#fff; font-size:26px; box-shadow:var(--shadow); display:grid; place-items:center;}
+  .micbtn:active{background:var(--mic-press);}
+  .micbtn.on{animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+  @media (prefers-reduced-motion: reduce){.micbtn.on{animation:none;}}
+  .micbtn[hidden]{display:none;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .tile{position:relative; background:var(--surface); border:2px solid var(--line); border-radius:18px; padding:16px 12px; min-height:110px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:var(--shadow); cursor:pointer; text-align:center;}
+  .tile:active{transform:translateY(1px); background:var(--surface-2);}
+  .tile .num{font-size:40px; font-weight:900; line-height:1;}
+  .tile .name{font-size:15px; color:var(--ink-soft); font-weight:700; margin-top:6px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tile.done{border-color:var(--check);}
+  .tile .badge{position:absolute; top:8px; right:8px; background:var(--check); color:#fff; border-radius:999px; font-size:13px; font-weight:800; padding:3px 9px;}
+  .empty{text-align:center; color:var(--ink-soft); padding:44px 20px; font-size:17px; font-weight:600; line-height:1.5;}
+  .empty .big{font-size:44px; display:block; margin-bottom:10px;}
+  .btn{border:0; border-radius:16px; font-family:inherit; font-weight:800; font-size:19px; padding:0 18px; height:var(--tap); color:#fff; box-shadow:var(--shadow); width:100%; display:flex; align-items:center; justify-content:center; gap:10px;}
+  .btn.go{background:var(--go);} .btn.go:active{background:var(--go-press);}
+  .btn.stop{background:var(--stop);} .btn.stop:active{background:var(--stop-press);}
+  .btn.ghost{background:var(--surface); color:var(--ink); border:2px solid var(--line); box-shadow:none;}
+  .btn.ghost:active{background:var(--surface-2);}
+  .btn:disabled{opacity:.45;}
+  nav{position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--surface); border-top:2px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom); max-width:600px; margin:0 auto;}
+  nav button{flex:1; border:0; background:transparent; color:var(--ink-soft); font-family:inherit; font-weight:800; font-size:11px; padding:9px 0 8px; display:flex; flex-direction:column; align-items:center; gap:3px;}
+  nav button .ic{font-size:24px; line-height:1;}
+  nav button.active{color:var(--go);}
+  /* modals */
+  .modal{position:fixed; inset:0; z-index:60; background:var(--bg); display:none; flex-direction:column;}
+  .modal.open{display:flex;}
+  .modal-top{padding:calc(env(safe-area-inset-top) + 12px) 16px 12px; display:flex; align-items:center; gap:12px; border-bottom:2px solid var(--line); background:var(--surface);}
+  .modal-top .x{width:52px; height:52px; border-radius:14px; border:2px solid var(--line); background:var(--surface); color:var(--ink); font-size:26px; flex:none;}
+  .modal-top .who{flex:1; min-width:0;}
+  .modal-top .who .n{font-size:34px; font-weight:900; line-height:1;}
+  .modal-top .who .nm{font-size:15px; color:var(--ink-soft); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .modal-top .spk{width:52px; height:52px; border-radius:14px; border:0; background:var(--mic); color:#fff; font-size:24px; flex:none;}
+  .modal-top .spk:active{background:var(--mic-press);}
+  .weigh-wrap{flex:1; display:flex; flex-direction:column; padding:14px 16px 0; overflow-y:auto;}
+  .readout{background:var(--surface); border:2px solid var(--line); border-radius:18px; padding:14px; text-align:center; margin-bottom:12px;}
+  .readout .val{font-size:64px; font-weight:900; line-height:1;}
+  .readout .unit{font-size:20px; color:var(--ink-soft); font-weight:800; margin-left:6px;}
+  .readout .note{font-size:14px; color:var(--ink-soft); font-weight:700; margin-top:6px; min-height:18px;}
+  .keys{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .key{height:70px; border-radius:16px; border:2px solid var(--line); background:var(--surface); color:var(--ink); font-family:inherit; font-size:32px; font-weight:800; box-shadow:var(--shadow);}
+  .key:active{background:var(--surface-2); transform:translateY(1px);}
+  .key.sec{background:var(--surface-2); font-size:24px;}
+  .modal-actions{padding:12px 16px calc(env(safe-area-inset-bottom) + 14px); background:var(--surface); border-top:2px solid var(--line); display:flex; gap:10px;}
+  .modal-actions .btn{height:66px; font-size:22px;}
+  .modal-body{flex:1; overflow-y:auto; padding:14px 16px calc(env(safe-area-inset-bottom) + 20px);}
+  /* rows */
+  .row{display:flex; align-items:center; gap:12px; background:var(--surface); border:2px solid var(--line); border-radius:16px; padding:12px 14px; margin-bottom:10px; box-shadow:var(--shadow);}
+  .row.tap{cursor:pointer;} .row.tap:active{background:var(--surface-2);}
+  .row .rn{font-size:28px; font-weight:900; min-width:56px;}
+  .row .rmid{flex:1; min-width:0;}
+  .row .rname{font-size:15px; color:var(--ink-soft); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .row .rkg{font-size:26px; font-weight:900;}
+  .row .rkg small{font-size:14px; color:var(--ink-soft); font-weight:700;}
+  .row .rtime{font-size:12px; color:var(--ink-soft); font-weight:700;}
+  .iconbtn{width:46px; height:46px; border-radius:12px; border:2px solid var(--line); background:var(--surface); color:var(--ink); font-size:20px; flex:none;}
+  .iconbtn.del{color:var(--stop); border-color:var(--stop);}
+  .iconbtn:active{background:var(--surface-2);}
+  .sectitle{font-size:13px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.6px; margin:18px 2px 10px;}
+  .card{background:var(--surface); border:2px solid var(--line); border-radius:18px; padding:14px; margin-bottom:14px; box-shadow:var(--shadow);}
+  .field{margin-bottom:10px;}
+  .field label{display:block; font-size:13px; font-weight:800; color:var(--ink-soft); margin:0 2px 6px;}
+  .field input, .field textarea{width:100%; border:2px solid var(--line); border-radius:14px; background:var(--surface-2); color:var(--ink); font-family:inherit; font-size:19px; font-weight:700; padding:14px; outline:0;}
+  .field textarea{min-height:110px; resize:vertical;}
+  .twocol{display:flex; gap:10px;} .twocol .field{flex:1;}
+  .hint{font-size:13px; color:var(--ink-soft); font-weight:600; line-height:1.5; margin:6px 2px 0;}
+  .pill{display:inline-block; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line);}
+  .pill.off{color:var(--stop); border-color:var(--stop);}
+  .kpis{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:6px;}
+  .kpi{background:var(--surface); border:2px solid var(--line); border-radius:16px; padding:12px; text-align:center; box-shadow:var(--shadow);}
+  .kpi b{display:block; font-size:30px; font-weight:900; line-height:1.1;}
+  .kpi span{font-size:11px; color:var(--ink-soft); font-weight:800; text-transform:uppercase; letter-spacing:.4px;}
+  .alert{display:flex; gap:12px; align-items:center; background:var(--surface); border:2px solid var(--line); border-left-width:8px; border-radius:14px; padding:11px 13px; margin-bottom:9px; box-shadow:var(--shadow); cursor:pointer;}
+  .alert:active{background:var(--surface-2);}
+  .alert.red{border-left-color:var(--stop);}
+  .alert.green{border-left-color:var(--go);}
+  .alert.yellow{border-left-color:var(--warn);}
+  .alert .ai{font-size:24px; flex:none;}
+  .alert .at{flex:1; min-width:0;}
+  .alert .at .a1{font-size:20px; font-weight:900;}
+  .alert .at .a2{font-size:13px; color:var(--ink-soft); font-weight:700;}
+  .stats3{display:flex; gap:10px; text-align:center; margin-bottom:12px;}
+  .stats3 .s{flex:1; background:var(--surface-2); border:2px solid var(--line); border-radius:14px; padding:10px 6px;}
+  .stats3 .s b{display:block; font-size:24px; font-weight:900; line-height:1.1;}
+  .stats3 .s span{font-size:11px; color:var(--ink-soft); font-weight:800;}
+  .chart{width:100%; height:auto; background:var(--surface-2); border:2px solid var(--line); border-radius:16px; margin-bottom:14px;}
+  .chart .line{fill:none; stroke:var(--go); stroke-width:3; stroke-linejoin:round; stroke-linecap:round;}
+  .chart .dot{fill:var(--go);}
+  .chart .axis{stroke:var(--line); stroke-width:1.5;}
+  .chart text{fill:var(--ink-soft); font-family:"Archivo",sans-serif; font-weight:700;}
+  .chart .kglab{fill:var(--ink); font-weight:900;}
+  .reco{border-left:8px solid var(--go); background:var(--surface); border:2px solid var(--line); border-left-width:8px; border-radius:14px; padding:12px 14px; margin-bottom:14px; font-size:15px; font-weight:700; line-height:1.45;}
+  .reco.red{border-left-color:var(--stop);} .reco.yellow{border-left-color:var(--warn);} .reco.green{border-left-color:var(--go);}
+  .hrow{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); font-size:15px; font-weight:700;}
+  .hrow:last-child{border-bottom:0;}
+  .hrow .hd{flex:1; color:var(--ink-soft);}
+  .hrow .hk{font-weight:900; font-size:18px;}
+  .hrow .hg{min-width:74px; text-align:right; font-weight:800;}
+  .up{color:var(--go);} .down{color:var(--stop);}
+  #toast{position:fixed; left:50%; transform:translateX(-50%); bottom:100px; z-index:80; background:var(--ink); color:var(--bg); padding:12px 18px; border-radius:999px; font-size:15px; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.25); opacity:0; transition:opacity .18s, transform .18s; pointer-events:none; max-width:88vw; text-align:center;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="em">🐂</span>
+      <div style="min-width:0;">
+        <h1>Pesaje</h1>
+        <div class="finca" id="fincaName">—</div>
+      </div>
+    </div>
+    <div class="count"><b id="countHoy">0</b><span>pesados hoy</span></div>
+  </header>
+
+  <main>
+    <!-- PESAR -->
+    <section id="view-pesar">
+      <div class="datebar" id="dateBar"></div>
+      <div class="findrow">
+        <div class="search">
+          <span style="font-size:20px;color:var(--ink-soft)">🔎</span>
+          <input id="search" inputmode="text" placeholder="Buscar número o nombre" autocomplete="off">
+          <span class="clr" id="searchClr" style="display:none">✕</span>
+        </div>
+        <button class="micbtn" id="micPesar" hidden aria-label="Dictar número">🎤</button>
+      </div>
+      <div id="pesarBody"></div>
+    </section>
+
+    <!-- HOY -->
+    <section id="view-hoy" class="hidden">
+      <div class="field" style="margin-bottom:12px;"><label>Día</label><input type="date" id="viewDate"></div>
+      <div id="hoyBody"></div>
+    </section>
+
+    <!-- HATO -->
+    <section id="view-hato" class="hidden">
+      <div class="sectitle">Agregar animal</div>
+      <div class="card">
+        <div class="twocol">
+          <div class="field"><label>Número</label><input id="addNum" inputmode="numeric" placeholder="Ej: 47" autocomplete="off"></div>
+          <div class="field"><label>Nombre (opcional)</label><input id="addName" placeholder="Ej: El Barroso" autocomplete="off"></div>
+        </div>
+        <button class="btn go" id="addBtn">＋ Agregar animal</button>
+      </div>
+      <div class="sectitle">Cargar varios de una vez</div>
+      <div class="card">
+        <div class="field"><label>Pega una lista (un animal por línea: número,nombre)</label>
+          <textarea id="bulk" placeholder="47,El Barroso&#10;48&#10;102,Manchado"></textarea></div>
+        <button class="btn ghost" id="bulkBtn">Importar lista</button>
+        <div class="hint">El nombre es opcional. Si el número ya existe, se omite.</div>
+      </div>
+      <div class="sectitle">Hato — <span id="herdCount">0</span> animales</div>
+      <div class="search" style="margin-bottom:12px;">
+        <span style="font-size:20px;color:var(--ink-soft)">🔎</span>
+        <input id="herdSearch" placeholder="Buscar en el hato" autocomplete="off">
+      </div>
+      <div class="hint" style="margin:-4px 2px 10px">Toca un animal para ver su historial y evolución.</div>
+      <div id="hatoBody"></div>
+      <div class="sectitle">Ajustes</div>
+      <div class="card">
+        <div class="field"><label>Nombre de la finca (sale en el archivo)</label><input id="fincaInput" placeholder="Ej: Finca La Gould"></div>
+        <div class="twocol">
+          <div class="field"><label>Peso de venta (kg)</label><input id="setTarget" inputmode="numeric" placeholder="480"></div>
+          <div class="field"><label>Ganancia mínima (kg/día)</label><input id="setGdp" inputmode="decimal" placeholder="0.3"></div>
+        </div>
+        <div class="field"><label>Avisar si no se pesa hace… (días)</label><input id="setStale" inputmode="numeric" placeholder="45"></div>
+        <button class="btn ghost" id="backupBtn">Descargar respaldo del hato</button>
+        <div class="hint">Estos valores se usan para las alertas de la pestaña Análisis.</div>
+      </div>
+    </section>
+
+    <!-- ANALISIS -->
+    <section id="view-analisis" class="hidden">
+      <div class="sectitle">Resumen del hato</div>
+      <div class="kpis" id="kpis"></div>
+      <div class="sectitle">Alertas y recomendaciones</div>
+      <div id="alertsBody"></div>
+      <div class="sectitle">Todos los pesados</div>
+      <div class="search" style="margin-bottom:12px;">
+        <span style="font-size:20px;color:var(--ink-soft)">🔎</span>
+        <input id="anSearch" placeholder="Buscar animal" autocomplete="off">
+      </div>
+      <div id="anList"></div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-view="pesar" class="active"><span class="ic">⚖️</span>Pesar</button>
+    <button data-view="hoy"><span class="ic">📋</span>Hoy</button>
+    <button data-view="hato"><span class="ic">🐂</span>Hato</button>
+    <button data-view="analisis"><span class="ic">📈</span>Análisis</button>
+  </nav>
+</div>
+
+<!-- WEIGH MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-top">
+    <button class="x" id="mClose" aria-label="Cerrar">✕</button>
+    <div class="who"><div class="n" id="mNum">—</div><div class="nm" id="mName"></div></div>
+    <button class="spk" id="mSpeak" aria-label="Escuchar">🔊</button>
+    <button class="spk" id="mMic" style="background:var(--mic)" hidden aria-label="Dictar peso">🎤</button>
+  </div>
+  <div class="weigh-wrap">
+    <div class="readout"><span class="val" id="mVal">0</span><span class="unit">kg</span><div class="note" id="mNote"></div></div>
+    <div class="keys" id="keys">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key sec" data-k="back">⌫</button><button class="key" data-k="0">0</button><button class="key sec" data-k="clear">C</button>
+    </div>
+  </div>
+  <div class="modal-actions"><button class="btn go" id="mSave">✓ Guardar</button></div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal" id="detail">
+  <div class="modal-top">
+    <button class="x" id="dClose" aria-label="Cerrar">✕</button>
+    <div class="who"><div class="n" id="dNum">—</div><div class="nm" id="dName"></div></div>
+    <button class="spk" id="dWeigh" style="background:var(--go)" aria-label="Pesar ahora">⚖️</button>
+  </div>
+  <div class="modal-body" id="detailBody"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var LS_HERD="cg_herd_v1", LS_REC="cg_rec_v1", LS_SET="cg_set_v1";
+
+  function load(key, def){ try{ var v=localStorage.getItem(key); return v==null?def:JSON.parse(v); }catch(e){ return def; } }
+  function save(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ toast("No se pudo guardar en el teléfono"); return false; } }
+
+  var herd = load(LS_HERD, []);
+  var records = load(LS_REC, {});
+  var settings = load(LS_SET, {finca:"", target:480, gdp:0.3, stale:45});
+  if(settings.target==null) settings.target=480;
+  if(settings.gdp==null) settings.gdp=0.3;
+  if(settings.stale==null) settings.stale=45;
+
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function todayStr(d){ d=d||new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function timeStr(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+  function shortDate(ts){ var d=new Date(ts); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getFullYear()).slice(2); }
+  function prettyDate(str){ var p=str.split("-"); var d=new Date(+p[0],+p[1]-1,+p[2]); try{ return d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}); }catch(e){ return str; } }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+  function dec(n){ return (Math.round(n*100)/100).toFixed(2).replace(".",","); }
+  function activeAnimals(){ return herd.filter(function(a){return a.active!==false;}); }
+  function recsFor(dateStr){ return records[dateStr] || []; }
+  var $=function(id){return document.getElementById(id);};
+
+  var toastT;
+  function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove("show");},2400); }
+  function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms||40); }catch(e){} }
+
+  /* TTS */
+  var ttsVoice=null, ttsOn=("speechSynthesis" in window);
+  function pickVoice(){ if(!ttsOn) return; var vs=window.speechSynthesis.getVoices()||[]; ttsVoice=vs.filter(function(v){return /^es/i.test(v.lang);})[0]||null; }
+  if(ttsOn){ pickVoice(); window.speechSynthesis.onvoiceschanged=pickVoice; }
+  function speak(t){ if(!ttsOn) return; try{ window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(t); u.lang="es-CO"; u.rate=0.95; if(ttsVoice)u.voice=ttsVoice; window.speechSynthesis.speak(u); }catch(e){} }
+
+  /* STT */
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, sttAvailable=!!SR;
+  function listen(onResult,onEnd){
+    if(!sttAvailable){ onEnd&&onEnd(); return; }
+    try{
+      var r=new SR(); r.lang="es-CO"; r.interimResults=false; r.maxAlternatives=3;
+      r.onresult=function(e){ var a=[]; for(var i=0;i<e.results[0].length;i++)a.push(e.results[0][i].transcript); onResult(a); };
+      r.onerror=function(ev){ if(ev.error==="not-allowed"||ev.error==="service-not-allowed")toast("Micrófono bloqueado"); onEnd&&onEnd(); };
+      r.onend=function(){ onEnd&&onEnd(); };
+      r.start();
+    }catch(e){ toast("La voz no está disponible aquí"); onEnd&&onEnd(); }
+  }
+  var UW={cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintiun:21,veintiuna:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90};
+  var HW={cien:100,ciento:100,doscientos:200,doscientas:200,trescientos:300,trescientas:300,cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,seiscientos:600,seiscientas:600,setecientos:700,setecientas:700,ochocientos:800,ochocientas:800,novecientos:900,novecientas:900};
+  function norm(s){ return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim(); }
+  function parseNumber(tr){ var t=norm(tr); var d=t.match(/\d+/g); if(d&&d.length)return parseInt(d.join(""),10); var w=t.split(" "),total=0,cur=0,got=false; for(var i=0;i<w.length;i++){var x=w[i]; if(x==="y")continue; if(x==="mil"){cur=(cur===0?1:cur);total+=cur*1000;cur=0;got=true;continue;} if(UW[x]!=null){cur+=UW[x];got=true;continue;} if(HW[x]!=null){cur+=HW[x];got=true;continue;}} return got?(total+cur):null; }
+
+  /* ---------- header ---------- */
+  function refreshHeader(){ $("fincaName").textContent=settings.finca||"Toca «Hato» para configurar"; $("countHoy").textContent=recsFor(todayStr()).length; $("dateBar").textContent=prettyDate(todayStr()); }
+
+  /* ---------- PESAR ---------- */
+  var searchQ="";
+  function renderPesar(){
+    var body=$("pesarBody"), list=activeAnimals();
+    if(!list.length){ body.innerHTML='<div class="empty"><span class="big">🐂</span>Aún no hay animales.<br>Ve a la pestaña <b>Hato</b> para agregarlos.</div>'; return; }
+    var q=norm(searchQ), doneSet={}; recsFor(todayStr()).forEach(function(r){doneSet[r.animalId]=r.kg;});
+    var f=list.filter(function(a){ if(!q)return true; return norm(a.num).indexOf(q)>=0||(a.name&&norm(a.name).indexOf(q)>=0); });
+    if(!f.length){ body.innerHTML='<div class="empty">Ningún animal coincide con «'+esc(searchQ)+'».</div>'; return; }
+    var h='<div class="grid">';
+    f.forEach(function(a){ var done=doneSet[a.id]!=null; h+='<div class="tile'+(done?' done':'')+'" data-id="'+a.id+'">'; if(done)h+='<div class="badge">✓ '+doneSet[a.id]+'kg</div>'; h+='<div class="num">'+esc(a.num)+'</div>'; if(a.name)h+='<div class="name">'+esc(a.name)+'</div>'; h+='</div>'; });
+    h+='</div>'; body.innerHTML=h;
+    Array.prototype.forEach.call(body.querySelectorAll(".tile"),function(el){ el.addEventListener("click",function(){ openWeigh(el.getAttribute("data-id"),todayStr()); }); });
+  }
+
+  /* ---------- HOY ---------- */
+  function renderHoy(){
+    var dateStr=$("viewDate").value||todayStr();
+    var recs=recsFor(dateStr).slice().sort(function(a,b){return b.ts-a.ts;});
+    var body=$("hoyBody"), head="";
+    if(recs.length){
+      var total=recs.reduce(function(s,r){return s+r.kg;},0), avg=Math.round(total/recs.length);
+      head='<div class="card" style="display:flex;justify-content:space-around;text-align:center;">'
+        +'<div><div style="font-size:30px;font-weight:900">'+recs.length+'</div><div class="pill">pesados</div></div>'
+        +'<div><div style="font-size:30px;font-weight:900">'+avg+'</div><div class="pill">promedio kg</div></div>'
+        +'<div><div style="font-size:30px;font-weight:900">'+total+'</div><div class="pill">total kg</div></div></div>'
+        +'<button class="btn go" id="csvBtn" style="margin-bottom:8px">⬇️ Descargar CSV</button>'
+        +'<button class="btn ghost hidden" id="waBtn" style="margin-bottom:8px">📲 Enviar por WhatsApp</button>'
+        +'<div class="hint">Descarga el archivo y adjúntalo en WhatsApp como documento (o usa «Enviar por WhatsApp» si aparece).</div>';
+    } else {
+      head='<div class="empty"><span class="big">📋</span>'+(dateStr===todayStr()?"Todavía no has pesado ningún animal hoy.":"No hay pesajes de este día.")+'</div>';
+    }
+    var rows="";
+    recs.forEach(function(r){ rows+='<div class="row" data-id="'+r.id+'"><div class="rn">'+esc(r.num)+'</div><div class="rmid"><div class="rname">'+esc(r.name||"—")+'</div><div class="rtime">'+timeStr(r.ts)+'</div></div><div class="rkg">'+r.kg+' <small>kg</small></div><button class="iconbtn edit" data-aid="'+r.animalId+'" aria-label="Editar">✏️</button><button class="iconbtn del" data-rid="'+r.id+'" aria-label="Eliminar">🗑️</button></div>'; });
+    body.innerHTML=head+rows;
+    if($("csvBtn")) $("csvBtn").addEventListener("click",function(){ downloadCSV(dateStr); });
+    if($("waBtn")){ if(canShareFiles()){ $("waBtn").classList.remove("hidden"); $("waBtn").addEventListener("click",function(){ shareCSV(dateStr); }); } }
+    Array.prototype.forEach.call(body.querySelectorAll(".edit"),function(el){ el.addEventListener("click",function(){ openWeigh(el.getAttribute("data-aid"),dateStr); }); });
+    Array.prototype.forEach.call(body.querySelectorAll(".del"),function(el){ el.addEventListener("click",function(){ deleteRecord(dateStr,el.getAttribute("data-rid")); }); });
+  }
+  function deleteRecord(dateStr,rid){ if(!confirm("¿Eliminar este pesaje?"))return; records[dateStr]=recsFor(dateStr).filter(function(r){return r.id!==rid;}); if(!records[dateStr].length)delete records[dateStr]; save(LS_REC,records); refreshHeader(); renderHoy(); toast("Pesaje eliminado"); }
+
+  /* ---------- HATO ---------- */
+  var herdQ="";
+  function sortHerd(list){ return list.slice().sort(function(a,b){ var na=parseInt(a.num,10),nb=parseInt(b.num,10); if(!isNaN(na)&&!isNaN(nb)&&na!==nb)return na-nb; return String(a.num).localeCompare(String(b.num)); }); }
+  function renderHato(){
+    $("herdCount").textContent=herd.length;
+    var q=norm(herdQ), list=sortHerd(herd);
+    if(q)list=list.filter(function(a){return norm(a.num).indexOf(q)>=0||(a.name&&norm(a.name).indexOf(q)>=0);});
+    var body=$("hatoBody");
+    if(!herd.length){ body.innerHTML='<div class="empty">El hato está vacío. Agrega tu primer animal arriba.</div>'; return; }
+    if(!list.length){ body.innerHTML='<div class="empty">Ningún animal coincide.</div>'; return; }
+    var rows="";
+    list.forEach(function(a){ var off=a.active===false; rows+='<div class="row tap" data-open="'+a.id+'"><div class="rn">'+esc(a.num)+'</div><div class="rmid"><div class="rname">'+esc(a.name||"Sin nombre")+'</div>'+(off?'<span class="pill off">inactivo</span>':'')+'</div><button class="iconbtn tog" data-id="'+a.id+'" aria-label="Activar/Inactivar">'+(off?'↩️':'⏸️')+'</button><button class="iconbtn del" data-id="'+a.id+'" aria-label="Eliminar">🗑️</button></div>'; });
+    body.innerHTML=rows;
+    Array.prototype.forEach.call(body.querySelectorAll(".row.tap"),function(el){ el.addEventListener("click",function(ev){ if(ev.target.closest(".iconbtn"))return; openDetail(el.getAttribute("data-open")); }); });
+    Array.prototype.forEach.call(body.querySelectorAll(".tog"),function(el){ el.addEventListener("click",function(){ toggleAnimal(el.getAttribute("data-id")); }); });
+    Array.prototype.forEach.call(body.querySelectorAll(".del"),function(el){ el.addEventListener("click",function(){ removeAnimal(el.getAttribute("data-id")); }); });
+  }
+  function addAnimal(num,name){ num=String(num||"").trim(); name=String(name||"").trim(); if(!num){toast("Escribe un número");return false;} if(herd.some(function(a){return norm(a.num)===norm(num);})){toast("El número "+num+" ya existe");return false;} herd.push({id:uid(),num:num,name:name,active:true}); save(LS_HERD,herd); return true; }
+  function toggleAnimal(id){ var a=herd.filter(function(x){return x.id===id;})[0]; if(!a)return; a.active=a.active===false?true:false; save(LS_HERD,herd); renderHato(); renderPesar(); }
+  function removeAnimal(id){ var a=herd.filter(function(x){return x.id===id;})[0]; if(!a)return; if(!confirm("¿Eliminar "+a.num+" del hato? No borra los pesajes ya guardados."))return; herd=herd.filter(function(x){return x.id!==id;}); save(LS_HERD,herd); renderHato(); renderPesar(); refreshHeader(); toast("Animal eliminado"); }
+
+  /* ---------- WEIGH MODAL ---------- */
+  var modalAnimal=null, modalDate=null, buf="";
+  function openWeigh(animalId,dateStr){
+    var a=herd.filter(function(x){return x.id===animalId;})[0]; if(!a){toast("Animal no encontrado");return;}
+    modalAnimal=a; modalDate=dateStr||todayStr(); buf="";
+    var ex=recsFor(modalDate).filter(function(r){return r.animalId===a.id;})[0];
+    $("mNum").textContent=a.num; $("mName").textContent=a.name||"";
+    $("mNote").textContent=ex?("Ya pesado: "+ex.kg+" kg — se reemplaza al guardar"):"";
+    if(ex)buf=String(ex.kg);
+    updateReadout(); $("detail").classList.remove("open"); $("modal").classList.add("open");
+    speak(a.name?("Vaca "+a.name):("Número "+a.num));
+  }
+  function closeWeigh(){ $("modal").classList.remove("open"); modalAnimal=null; if(ttsOn)try{window.speechSynthesis.cancel();}catch(e){} }
+  function updateReadout(){ $("mVal").textContent=buf===""?"0":buf; $("mSave").disabled=!(parseInt(buf,10)>0); }
+  function keyPress(k){ if(k==="back")buf=buf.slice(0,-1); else if(k==="clear")buf=""; else{ if(buf.length>=4)return; if(buf==="0")buf=""; buf+=k; } buzz(15); updateReadout(); }
+  function saveWeigh(){
+    if(!modalAnimal)return; var kg=parseInt(buf,10); if(!(kg>0)){toast("Escribe un peso");return;}
+    var arr=recsFor(modalDate), ex=arr.filter(function(r){return r.animalId===modalAnimal.id;})[0];
+    if(ex){ex.kg=kg;ex.ts=Date.now();} else arr.push({id:uid(),animalId:modalAnimal.id,num:modalAnimal.num,name:modalAnimal.name||"",kg:kg,ts:Date.now()});
+    records[modalDate]=arr; save(LS_REC,records); buzz(60);
+    speak((modalAnimal.name?modalAnimal.name:("número "+modalAnimal.num))+", "+kg+" kilos, guardado");
+    toast("✓ "+modalAnimal.num+" — "+kg+" kg"); closeWeigh(); refreshHeader();
+    if(currentView==="pesar")renderPesar(); else if(currentView==="hoy")renderHoy(); else if(currentView==="analisis")renderAnalisis();
+  }
+
+  /* ---------- HISTORY / STATS ---------- */
+  function animalHistory(animalId){ var out=[]; for(var d in records){ if(!records.hasOwnProperty(d))continue; records[d].forEach(function(r){ if(r.animalId===animalId)out.push({date:d,kg:r.kg,ts:r.ts}); }); } out.sort(function(a,b){return a.ts-b.ts;}); return out; }
+  function dayDiff(ts1,ts2){ return Math.max(1, Math.round((ts2-ts1)/86400000)); }
+  function stats(hist){
+    var n=hist.length; if(!n)return {n:0};
+    var first=hist[0], last=hist[n-1], current=last.kg;
+    var s={n:n, current:current, first:first.kg, lastDate:last.ts, daysSinceLast:Math.round((Date.now()-last.ts)/86400000)};
+    if(n>=2){
+      s.totalGain=last.kg-first.kg; s.totalDays=dayDiff(first.ts,last.ts); s.gdpOverall=s.totalGain/s.totalDays;
+      var prev=hist[n-2]; s.gdpLast=(last.kg-prev.kg)/dayDiff(prev.ts,last.ts); s.gdpLastDays=dayDiff(prev.ts,last.ts);
+    }
+    return s;
+  }
+  function classify(a,s){
+    // returns {level, icon, title, sub} or null
+    if(s.n>=2 && s.current>=settings.target && s.gdpLast>0){
+      return {level:"green",icon:"🏁",title:"Listo para venta",sub:s.current+" kg (meta "+settings.target+")"};
+    }
+    if(s.n>=2 && s.gdpLast<=0){ return {level:"red",icon:"⚠️",title:"No está ganando peso",sub:"Última ganancia "+dec(s.gdpLast)+" kg/día — revisar salud/alimentación"}; }
+    if(s.n>=2 && s.gdpLast<settings.gdp){ return {level:"yellow",icon:"🐌",title:"Ganancia baja",sub:dec(s.gdpLast)+" kg/día (mínimo "+dec(settings.gdp)+")"}; }
+    if(s.n>=1 && s.daysSinceLast>settings.stale){ return {level:"yellow",icon:"📅",title:"Sin pesar hace "+s.daysSinceLast+" días",sub:"Conviene volver a pesarlo"}; }
+    if(s.current>=settings.target){ return {level:"green",icon:"🏁",title:"Listo para venta",sub:s.current+" kg (meta "+settings.target+")"}; }
+    return null;
+  }
+
+  /* ---------- ANALISIS ---------- */
+  var anQ="";
+  function renderAnalisis(){
+    var list=herd.slice(); var withData=[];
+    list.forEach(function(a){ var h=animalHistory(a.id); if(h.length){ withData.push({a:a,h:h,s:stats(h)}); } });
+    // KPIs
+    var nHerd=herd.length, nWeighed=withData.length;
+    var avgW = nWeighed? Math.round(withData.reduce(function(x,o){return x+o.s.current;},0)/nWeighed) : 0;
+    var gdps=withData.filter(function(o){return o.s.n>=2;}).map(function(o){return o.s.gdpOverall;});
+    var avgG = gdps.length? (gdps.reduce(function(x,y){return x+y;},0)/gdps.length) : null;
+    $("kpis").innerHTML=
+      '<div class="kpi"><b>'+nHerd+'</b><span>en el hato</span></div>'+
+      '<div class="kpi"><b>'+nWeighed+'</b><span>con pesaje</span></div>'+
+      '<div class="kpi"><b>'+(avgW||"—")+'</b><span>peso prom. kg</span></div>'+
+      '<div class="kpi"><b>'+(avgG==null?"—":dec(avgG))+'</b><span>ganancia kg/día</span></div>';
+    // alerts
+    var alerts=[];
+    withData.forEach(function(o){ var c=classify(o.a,o.s); if(c){ c.id=o.a.id; c.num=o.a.num; c.name=o.a.name; alerts.push(c); } });
+    var neverW = herd.filter(function(a){return a.active!==false;}).filter(function(a){return !animalHistory(a.id).length;});
+    var order={red:0,green:1,yellow:2};
+    alerts.sort(function(x,y){return order[x.level]-order[y.level];});
+    var ab=$("alertsBody"), h="";
+    if(!alerts.length && !neverW.length){ h='<div class="empty" style="padding:24px">Sin alertas. Todo marcha bien 👍</div>'; }
+    alerts.forEach(function(c){ h+='<div class="alert '+c.level+'" data-open="'+c.id+'"><div class="ai">'+c.icon+'</div><div class="at"><div class="a1">'+esc(c.num)+(c.name?' · '+esc(c.name):'')+'</div><div class="a2">'+c.title+' — '+c.sub+'</div></div></div>'; });
+    if(neverW.length){ h+='<div class="alert yellow" data-noop="1"><div class="ai">❓</div><div class="at"><div class="a1">'+neverW.length+' sin pesar</div><div class="a2">Animales activos que aún no tienen ningún pesaje</div></div></div>'; }
+    ab.innerHTML=h;
+    Array.prototype.forEach.call(ab.querySelectorAll(".alert[data-open]"),function(el){ el.addEventListener("click",function(){ openDetail(el.getAttribute("data-open")); }); });
+    // full list
+    var q=norm(anQ), rows="", show=withData.slice();
+    show.sort(function(x,y){ var nx=parseInt(x.a.num,10),ny=parseInt(y.a.num,10); if(!isNaN(nx)&&!isNaN(ny)&&nx!==ny)return nx-ny; return String(x.a.num).localeCompare(String(y.a.num)); });
+    if(q)show=show.filter(function(o){return norm(o.a.num).indexOf(q)>=0||(o.a.name&&norm(o.a.name).indexOf(q)>=0);});
+    if(!show.length){ rows='<div class="empty" style="padding:20px">Aún no hay animales con pesaje.</div>'; }
+    show.forEach(function(o){
+      var g=o.s.n>=2?o.s.gdpLast:null;
+      var gtxt=g==null?'<span class="pill">1 pesaje</span>':('<span class="hg '+(g>0?'up':'down')+'">'+(g>0?'▲':'▼')+' '+dec(Math.abs(g))+'</span>');
+      rows+='<div class="row tap" data-open="'+o.a.id+'"><div class="rn">'+esc(o.a.num)+'</div><div class="rmid"><div class="rname">'+esc(o.a.name||"Sin nombre")+'</div><div class="rtime">'+o.s.n+' pesajes · último '+shortDate(o.s.lastDate)+'</div></div><div class="rkg">'+o.s.current+' <small>kg</small></div>'+gtxt+'</div>';
+    });
+    $("anList").innerHTML=rows;
+    Array.prototype.forEach.call($("anList").querySelectorAll(".row.tap"),function(el){ el.addEventListener("click",function(){ openDetail(el.getAttribute("data-open")); }); });
+  }
+
+  /* ---------- DETAIL MODAL ---------- */
+  var detailAnimal=null;
+  function chartSVG(hist){
+    var W=320,H=150,pl=34,pr=12,pt=14,pb=24;
+    if(hist.length===1){ var only=hist[0]; return '<svg class="chart" viewBox="0 0 '+W+' '+H+'"><circle class="dot" cx="'+(W/2)+'" cy="'+(H/2)+'" r="5"/><text class="kglab" x="'+(W/2)+'" y="'+(H/2-12)+'" text-anchor="middle" font-size="16">'+only.kg+' kg</text><text x="'+(W/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="11">'+shortDate(only.ts)+'</text></svg>'; }
+    var kgs=hist.map(function(p){return p.kg;}); var mn=Math.min.apply(null,kgs), mx=Math.max.apply(null,kgs);
+    if(mn===mx){mn-=5;mx+=5;} var pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
+    function X(i){ return pl+(W-pl-pr)*(i/(hist.length-1)); }
+    function Y(kg){ return pt+(H-pt-pb)*(1-(kg-mn)/(mx-mn)); }
+    var pts=hist.map(function(p,i){return X(i)+","+Y(p.kg);}).join(" ");
+    var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
+    s+='<line class="axis" x1="'+pl+'" y1="'+(H-pb)+'" x2="'+(W-pr)+'" y2="'+(H-pb)+'"/>';
+    s+='<text x="2" y="'+(Y(mx)+4)+'" font-size="10">'+Math.round(mx)+'</text>';
+    s+='<text x="2" y="'+(Y(mn)+4)+'" font-size="10">'+Math.round(mn)+'</text>';
+    s+='<polyline class="line" points="'+pts+'"/>';
+    hist.forEach(function(p,i){ s+='<circle class="dot" cx="'+X(i)+'" cy="'+Y(p.kg)+'" r="4"/>'; });
+    // label first & last
+    s+='<text class="kglab" x="'+X(0)+'" y="'+(Y(hist[0].kg)-9)+'" text-anchor="middle" font-size="12">'+hist[0].kg+'</text>';
+    var L=hist.length-1; s+='<text class="kglab" x="'+X(L)+'" y="'+(Y(hist[L].kg)-9)+'" text-anchor="middle" font-size="12">'+hist[L].kg+'</text>';
+    s+='<text x="'+pl+'" y="'+(H-6)+'" text-anchor="start" font-size="10">'+shortDate(hist[0].ts)+'</text>';
+    s+='<text x="'+(W-pr)+'" y="'+(H-6)+'" text-anchor="end" font-size="10">'+shortDate(hist[L].ts)+'</text>';
+    s+='</svg>'; return s;
+  }
+  function recoFor(a,s){
+    if(s.n<2){ return {cls:"yellow", txt:"Necesita al menos 2 pesajes para calcular la ganancia. Vuelve a pesarlo más adelante."}; }
+    var g=s.gdpLast, txt="", cls="green";
+    if(g<=0){ cls="red"; txt="⚠️ No está ganando peso (última ganancia "+dec(g)+" kg/día). Conviene revisar salud, parásitos, agua y alimentación."; }
+    else if(g<settings.gdp){ cls="yellow"; txt="Ganancia baja: "+dec(g)+" kg/día, por debajo del mínimo de "+dec(settings.gdp)+". Revisa la dieta o el potrero."; }
+    else { cls="green"; txt="Buena ganancia: "+dec(g)+" kg/día. Va bien."; }
+    if(s.current>=settings.target){ cls="green"; txt+=" 🏁 Ya alcanzó el peso de venta ("+settings.target+" kg)."; }
+    if(s.daysSinceLast>settings.stale){ txt+=" 📅 Último pesaje hace "+s.daysSinceLast+" días — conviene pesarlo pronto."; }
+    return {cls:cls, txt:txt};
+  }
+  function openDetail(animalId){
+    var a=herd.filter(function(x){return x.id===animalId;})[0]; if(!a){toast("Animal no encontrado");return;}
+    detailAnimal=a; var hist=animalHistory(a.id), s=stats(hist);
+    $("dNum").textContent=a.num; $("dName").textContent=a.name||"";
+    var body=$("detailBody"), h="";
+    if(!hist.length){
+      h='<div class="empty"><span class="big">⚖️</span>Este animal todavía no tiene pesajes.<br>Toca el botón verde de arriba para pesarlo.</div>';
+    } else {
+      h+='<div class="stats3"><div class="s"><b>'+s.current+'</b><span>peso actual kg</span></div>';
+      if(s.n>=2){ h+='<div class="s"><b>'+(s.totalGain>=0?'+':'')+s.totalGain+'</b><span>ganado kg</span></div><div class="s"><b>'+dec(s.gdpOverall)+'</b><span>kg/día global</span></div>'; }
+      else { h+='<div class="s"><b>—</b><span>ganado kg</span></div><div class="s"><b>—</b><span>kg/día</span></div>'; }
+      h+='</div>';
+      h+=chartSVG(hist);
+      var rc=recoFor(a,s); h+='<div class="reco '+rc.cls+'">'+rc.txt+'</div>';
+      h+='<div class="sectitle" style="margin-top:4px">Historial ('+s.n+')</div><div class="card">';
+      for(var i=hist.length-1;i>=0;i--){ var p=hist[i], diff=i>0?(p.kg-hist[i-1].kg):null; var dtxt=diff==null?'<span class="hg">—</span>':('<span class="hg '+(diff>=0?'up':'down')+'">'+(diff>=0?'+':'')+diff+' kg</span>'); h+='<div class="hrow"><div class="hd">'+shortDate(p.ts)+'</div><div class="hk">'+p.kg+' kg</div>'+dtxt+'</div>'; }
+      h+='</div>';
+    }
+    body.innerHTML=h;
+    $("modal").classList.remove("open"); $("detail").classList.add("open");
+  }
+  function closeDetail(){ $("detail").classList.remove("open"); detailAnimal=null; }
+
+  /* ---------- FILE OUT ---------- */
+  function slug(s){ return String(s||"finca").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_+|_+$/g,"").toLowerCase()||"finca"; }
+  function cell(v){ v=String(v==null?"":v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  function buildCSV(dateStr){
+    var recs=recsFor(dateStr).slice().sort(function(a,b){return a.ts-b.ts;});
+    var lines=["Fecha;Numero;Nombre;Peso_kg;Hora;Finca"];
+    recs.forEach(function(r){ lines.push([cell(dateStr),cell(r.num),cell(r.name),cell(r.kg),cell(timeStr(r.ts)),cell(settings.finca)].join(";")); });
+    return "\uFEFF"+lines.join("\r\n");
+  }
+  function browserDownload(filename,data){ try{ var b=new Blob([data],{type:"text/csv;charset=utf-8"}); var u=URL.createObjectURL(b); var a=document.createElement("a"); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(u);a.remove();},1500); return true; }catch(e){ return false; } }
+  async function saveFile(filename,data){
+    try{ if(window.claude&&claude.use){ var dl=await claude.use("downloads"); if(dl){ var r=await dl.save({filename:filename,data:data}); return (r&&(r.status==="saved"||r.status==="delivered"))?"ok":"declined"; } } }
+    catch(e){ if(e&&e.code==="declined")return "declined"; }
+    return browserDownload(filename,data)?"ok":"error";
+  }
+  async function downloadCSV(dateStr){
+    if(!recsFor(dateStr).length){ toast("No hay pesajes para descargar"); return; }
+    var fn="pesaje_"+slug(settings.finca)+"_"+dateStr+".csv";
+    var res=await saveFile(fn,buildCSV(dateStr));
+    if(res==="ok")toast("Archivo listo para WhatsApp"); else if(res==="declined")toast("Descarga cancelada"); else toast("No se pudo descargar");
+  }
+  function backupHerd(){
+    if(!herd.length){toast("El hato está vacío");return;}
+    var lines=["Numero;Nombre;Estado"]; sortHerd(herd).forEach(function(a){ lines.push([cell(a.num),cell(a.name),a.active===false?"inactivo":"activo"].join(";")); });
+    saveFile("hato_"+slug(settings.finca)+".csv","\uFEFF"+lines.join("\r\n")).then(function(r){ if(r==="ok")toast("Respaldo descargado"); });
+  }
+  function canShareFiles(){ try{ if(!navigator.canShare)return false; var f=new File(["x"],"t.csv",{type:"text/csv"}); return navigator.canShare({files:[f]}); }catch(e){ return false; } }
+  async function shareCSV(dateStr){
+    if(!recsFor(dateStr).length){toast("No hay pesajes");return;}
+    try{ var f=new File([buildCSV(dateStr)],"pesaje_"+slug(settings.finca)+"_"+dateStr+".csv",{type:"text/csv"}); await navigator.share({files:[f],title:"Pesaje "+dateStr}); }
+    catch(e){ /* cancelado */ }
+  }
+
+  /* ---------- VOICE ---------- */
+  function voicePickAnimal(){ var btn=$("micPesar"); btn.classList.add("on"); listen(function(alts){ var found=null; for(var i=0;i<alts.length&&!found;i++){ var n=parseNumber(alts[i]); if(n!=null)found=activeAnimals().filter(function(a){return norm(a.num)===String(n)||parseInt(a.num,10)===n;})[0]; if(!found){ var t=norm(alts[i]); found=activeAnimals().filter(function(a){return a.name&&norm(a.name)===t;})[0]||activeAnimals().filter(function(a){return a.name&&t.length>=3&&norm(a.name).indexOf(t)>=0;})[0]; } } if(found)openWeigh(found.id,todayStr()); else{ speak("No encontré ese número"); toast("No encontré: "+esc(alts[0]||"")); } }, function(){ btn.classList.remove("on"); }); }
+  function voiceWeight(){ if(!modalAnimal)return; var btn=$("mMic"); btn.classList.add("on"); listen(function(alts){ var n=null; for(var i=0;i<alts.length&&n==null;i++)n=parseNumber(alts[i]); if(n!=null&&n>0){ buf=String(n).slice(0,4); updateReadout(); speak(n+" kilos"); } else{ speak("No entendí el peso"); toast("No entendí el peso"); } }, function(){ btn.classList.remove("on"); }); }
+
+  /* ---------- NAV ---------- */
+  var currentView="pesar";
+  function show(view){
+    currentView=view;
+    ["pesar","hoy","hato","analisis"].forEach(function(v){ $("view-"+v).classList.toggle("hidden",v!==view); });
+    Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(b){ b.classList.toggle("active",b.getAttribute("data-view")===view); });
+    if(view==="pesar")renderPesar();
+    if(view==="hoy"){ if(!$("viewDate").value)$("viewDate").value=todayStr(); renderHoy(); }
+    if(view==="hato")renderHato();
+    if(view==="analisis")renderAnalisis();
+  }
+
+  /* ---------- WIRE ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(b){ b.addEventListener("click",function(){ show(b.getAttribute("data-view")); }); });
+  $("search").addEventListener("input",function(e){ searchQ=e.target.value; $("searchClr").style.display=searchQ?"block":"none"; renderPesar(); });
+  $("searchClr").addEventListener("click",function(){ searchQ=""; $("search").value=""; $("searchClr").style.display="none"; renderPesar(); });
+  Array.prototype.forEach.call(document.querySelectorAll(".key"),function(k){ k.addEventListener("click",function(){ keyPress(k.getAttribute("data-k")); }); });
+  $("mClose").addEventListener("click",closeWeigh);
+  $("mSave").addEventListener("click",saveWeigh);
+  $("mSpeak").addEventListener("click",function(){ if(modalAnimal)speak(modalAnimal.name?("Vaca "+modalAnimal.name):("Número "+modalAnimal.num)); });
+  $("dClose").addEventListener("click",closeDetail);
+  $("dWeigh").addEventListener("click",function(){ if(detailAnimal)openWeigh(detailAnimal.id,todayStr()); });
+  $("addBtn").addEventListener("click",function(){ if(addAnimal($("addNum").value,$("addName").value)){ $("addNum").value="";$("addName").value="";$("addNum").focus(); renderHato(); renderPesar(); toast("Animal agregado"); } });
+  $("bulkBtn").addEventListener("click",function(){ var lines=($("bulk").value||"").split(/\r?\n/),added=0; lines.forEach(function(ln){ ln=ln.trim(); if(!ln)return; var p=ln.split(/[,;\t]/), num=(p[0]||"").trim(), name=(p[1]||"").trim(); if(num&&addAnimal(num,name))added++; }); $("bulk").value=""; renderHato(); renderPesar(); toast(added?("Se agregaron "+added+" animales"):"No se agregó nada nuevo"); });
+  $("herdSearch").addEventListener("input",function(e){ herdQ=e.target.value; renderHato(); });
+  $("anSearch").addEventListener("input",function(e){ anQ=e.target.value; renderAnalisis(); });
+  $("backupBtn").addEventListener("click",backupHerd);
+  $("viewDate").addEventListener("change",renderHoy);
+  $("fincaInput").addEventListener("input",function(e){ settings.finca=e.target.value; save(LS_SET,settings); refreshHeader(); });
+  $("setTarget").addEventListener("input",function(e){ var v=parseInt(e.target.value,10); settings.target=isNaN(v)?480:v; save(LS_SET,settings); });
+  $("setGdp").addEventListener("input",function(e){ var v=parseFloat(String(e.target.value).replace(",",".")); settings.gdp=isNaN(v)?0.3:v; save(LS_SET,settings); });
+  $("setStale").addEventListener("input",function(e){ var v=parseInt(e.target.value,10); settings.stale=isNaN(v)?45:v; save(LS_SET,settings); });
+  if(sttAvailable){ $("micPesar").hidden=false; $("mMic").hidden=false; $("micPesar").addEventListener("click",voicePickAnimal); $("mMic").addEventListener("click",voiceWeight); }
+
+  /* ---------- INIT ---------- */
+  $("fincaInput").value=settings.finca||"";
+  $("setTarget").value=settings.target; $("setGdp").value=String(settings.gdp).replace(".",","); $("setStale").value=settings.stale;
+  $("viewDate").value=todayStr();
+  refreshHeader(); show("pesar");
+})();
+</script>
+</body>
+</html>
